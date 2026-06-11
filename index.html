@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServiceNow CSM Analyzer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+  header { background: #fff; border-bottom: 1px solid #e8eaf0; padding: 1rem 2rem; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; background: linear-gradient(135deg, #81c784, #388e3c); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  header h1 { font-size: 18px; font-weight: 600; color: #1a1a2e; }
+  header p { font-size: 13px; color: #6b7280; }
+  main { max-width: 860px; margin: 2rem auto; padding: 0 1.5rem; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+  .tab { padding: 7px 18px; border-radius: 8px; border: 1px solid #e8eaf0; background: #fff; color: #6b7280; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .tab.active { background: #e8f5e9; border-color: #81c784; color: #2e7d32; font-weight: 500; }
+  textarea { width: 100%; min-height: 120px; padding: 12px; font-size: 14px; border-radius: 8px; border: 1px solid #e8eaf0; background: #fafafa; color: #1a1a2e; resize: vertical; font-family: inherit; line-height: 1.6; outline: none; transition: border 0.15s; }
+  textarea:focus { border-color: #81c784; background: #fff; }
+  .drop-zone { border: 2px dashed #c8e6c9; border-radius: 10px; padding: 2.5rem; text-align: center; cursor: pointer; background: #f9fbe7; transition: all 0.15s; }
+  .drop-zone:hover { border-color: #66bb6a; background: #f1f8e9; }
+  .drop-zone i { font-size: 32px; color: #81c784; margin-bottom: 10px; display: block; }
+  .drop-zone p { font-size: 14px; color: #6b7280; }
+  .drop-zone small { font-size: 12px; color: #9ca3af; }
+  #image-preview { margin-top: 12px; display: none; }
+  #preview-img { max-width: 100%; border-radius: 8px; border: 1px solid #e8eaf0; }
+  #preview-name { font-size: 12px; color: #6b7280; margin-top: 6px; }
+  #image-context { margin-top: 10px; min-height: 60px; }
+  .btn-analyze { margin-top: 14px; padding: 10px 28px; background: #388e3c; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+  .btn-analyze:hover { background: #2e7d32; }
+  .btn-analyze:disabled { background: #a5d6a7; cursor: not-allowed; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .badge { padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+  .badge.native { background: #e8f5e9; color: #2e7d32; }
+  .badge.config { background: #fff8e1; color: #f57f17; }
+  .badge.custom { background: #fce4ec; color: #c62828; }
+  .result-item { border: 1px solid #e8eaf0; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; border-left-width: 4px; }
+  .result-item.native { border-left-color: #66bb6a; }
+  .result-item.config { border-left-color: #ffd54f; }
+  .result-item.custom { border-left-color: #ef9a9a; }
+  .item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .item-title { font-size: 15px; font-weight: 500; color: #1a1a2e; }
+  .item-explanation { font-size: 13px; color: #4b5563; line-height: 1.6; }
+  .item-reco { font-size: 12px; color: #6b7280; margin-top: 6px; display: flex; align-items: flex-start; gap: 5px; }
+  .loading { text-align: center; padding: 2.5rem; display: none; }
+  .loading i { font-size: 28px; color: #81c784; animation: spin 1s linear infinite; }
+  .loading p { margin-top: 10px; font-size: 14px; color: #6b7280; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  #result-zone { display: none; }
+  .intro { font-size: 14px; color: #6b7280; margin-bottom: 1.5rem; line-height: 1.7; }
+  .intro strong { color: #1a1a2e; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+  <div>
+    <h1>ServiceNow CSM Analyzer</h1>
+    <p>Analyse config vs customisation — Projet SYNAPSE</p>
+  </div>
+</header>
+<main>
+  <div class="card">
+    <p class="intro">Décris un besoin fonctionnel <strong>en texte</strong> ou uploade une <strong>maquette / image</strong>. L'outil décompose chaque élément et indique s'il est <strong>natif OOB</strong>, à <strong>configurer</strong>, ou à <strong>développer</strong> dans ServiceNow CSM.</p>
+    <div class="mode-tabs">
+      <button class="tab active" id="btn-text" onclick="switchMode('text')"><i class="fa-solid fa-keyboard"></i> Texte</button>
+      <button class="tab" id="btn-image" onclick="switchMode('image')"><i class="fa-solid fa-image"></i> Image / maquette</button>
+    </div>
+    <div id="mode-text">
+      <textarea id="need-input" placeholder="Ex : Je veux qu'un agent puisse mettre un ticket en attente avec un motif personnalisé, et que le client reçoive une notification automatique par email..."></textarea>
+    </div>
+    <div id="mode-image" style="display:none;">
+      <div class="drop-zone" onclick="document.getElementById('file-input').click()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <p>Clique ou glisse une image / maquette ici</p>
+        <small>PNG, JPG acceptés</small>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="handleFile(this)">
+      <div id="image-preview">
+        <img id="preview-img" alt="Aperçu">
+        <p id="preview-name"></p>
+      </div>
+      <textarea id="image-context" placeholder="Contexte optionnel : décris ce que cette maquette représente..."></textarea>
+    </div>
+    <button class="btn-analyze" onclick="analyze()" id="analyze-btn">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Analyser
+    </button>
+  </div>
+  <div class="loading" id="loading-zone">
+    <i class="fa-solid fa-gear"></i>
+    <p id="loading-msg">Analyse en cours...</p>
+  </div>
+  <div id="result-zone">
+    <div class="legend">
+      <span class="badge native">🟢 <span id="n-native">0</span> natif OOB</span>
+      <span class="badge config">🟡 <span id="n-config">0</span> configuration</span>
+      <span class="badge custom">🔴 <span id="n-custom">0</span> customisation</span>
+    </div>
+    <div id="result-list"></div>
+  </div>
+</main>
+<script>
+let currentMode = 'text';
+let imageBase64 = null;
+let imageMediaType = null;
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-text').style.display = mode === 'text' ? 'block' : 'none';
+  document.getElementById('mode-image').style.display = mode === 'image' ? 'block' : 'none';
+  document.getElementById('btn-text').className = 'tab' + (mode === 'text' ? ' active' : '');
+  document.getElementById('btn-image').className = 'tab' + (mode === 'image' ? ' active' : '');
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const result = e.target.result;
+    imageBase64 = result.split(',')[1];
+    imageMediaType = file.type || 'image/png';
+    document.getElementById('preview-img').src = result;
+    document.getElementById('preview-name').textContent = file.name;
+    document.getElementById('image-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderResults(items) {
+  const list = document.getElementById('result-list');
+  list.innerHTML = '';
+  let nN = 0, nC = 0, nX = 0;
+  const typeMap = {
+    'natif': { cls: 'native', badge: '🟢 Natif OOB' },
+    'configuration': { cls: 'config', badge: '🟡 Configuration' },
+    'customisation': { cls: 'custom', badge: '🔴 Customisation' }
+  };
+  items.forEach(item => {
+    const t = (item.type || '').toLowerCase();
+    const m = typeMap[t] || typeMap['configuration'];
+    if (t === 'natif') nN++;
+    else if (t === 'configuration') nC++;
+    else nX++;
+    const div = document.createElement('div');
+    div.className = 'result-item ' + m.cls;
+    div.innerHTML = `
+      <div class="item-header">
+        <span class="badge ${m.cls}" style="font-size:12px;">${m.badge}</span>
+        <span class="item-title">${item.element || ''}</span>
+      </div>
+      <p class="item-explanation">${item.explanation || ''}</p>
+      ${item.recommendation ? `<p class="item-reco"><i class="fa-solid fa-lightbulb" style="color:#fbbf24;margin-top:2px;"></i> ${item.recommendation}</p>` : ''}
+    `;
+    list.appendChild(div);
+  });
+  document.getElementById('n-native').textContent = nN;
+  document.getElementById('n-config').textContent = nC;
+  document.getElementById('n-custom').textContent = nX;
+  document.getElementById('result-zone').style.display = 'block';
+}
+
+async function analyze() {
+  const btn = document.getElementById('analyze-btn');
+  const loading = document.getElementById('loading-zone');
+  document.getElementById('result-zone').style.display = 'none';
+  loading.style.display = 'block';
+  btn.disabled = true;
+  const msgs = ['Analyse en cours...', 'Consultation de la base ServiceNow CSM...', 'Classification des éléments...'];
+  let mi = 0;
+  const msgEl = document.getElementById('loading-msg');
+  const iv = setInterval(() => { mi = (mi+1) % msgs.length; msgEl.textContent = msgs[mi]; }, 1800);
+  try {
+    const need = document.getElementById('need-input').value.trim();
+    if (currentMode === 'text' && !need) { clearInterval(iv); loading.style.display = 'none'; btn.disabled = false; return; }
+
+    let userMessage;
+    if (currentMode === 'image' && imageBase64) {
+      const ctx = document.getElementById('image-context').value.trim();
+      userMessage = `Analyse cette maquette d'un point de vue ServiceNow CSM.${ctx ? ' Contexte : ' + ctx : ''}\n\nPour chaque élément visuel identifiable (champ, bouton, section, workflow, notification, liste, etc.), indique s'il est natif OOB, à configurer, ou à customiser.\n\nRéponds UNIQUEMENT en JSON valide sans backticks : {"items":[{"element":"...","type":"natif|configuration|customisation","explanation":"...","recommendation":"..."}]}`;
+    } else {
+      userMessage = `Analyse ce besoin fonctionnel du point de vue ServiceNow CSM : "${need}"\n\nDécompose en éléments fonctionnels distincts et pour chacun indique s'il est natif OOB, à configurer, ou à customiser.\n\nRéponds UNIQUEMENT en JSON valide sans backticks : {"items":[{"element":"...","type":"natif|configuration|customisation","explanation":"explication courte en français (max 2 phrases)","recommendation":"conseil optionnel (max 1 phrase)"}]}`;
+    }
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer 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' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 1000,
+        messages: [
+          { role: 'system', content: 'Tu es un expert ServiceNow CSM. Tu distingues parfaitement : Natif OOB (case management, interactions, agent workspace, portail standard, SLA engine, notifications email, parent/child cases, groupes, approbations standard, major case management), Configuration (groupes spécifiques, SLA personnalisés, règles d\'affectation, formulaires configurés, motifs de mise en attente, codes de résolution, catalogues, workflows Flow Designer, notifications personnalisées), Customisation (champs calculés complexes, intégrations externes, widgets custom, logique de validation complexe, tables additionnelles, scripts Business Rule complexes). Réponds toujours en JSON pur sans markdown.' },
+          { role: 'user', content: userMessage }
+        ]
+      })
+    });
+
+    const data = await resp.json();
+    const text = data.choices[0].message.content;
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    clearInterval(iv);
+    loading.style.display = 'none';
+    btn.disabled = false;
+    renderResults(parsed.items || []);
+  } catch(err) {
+    clearInterval(iv);
+    loading.style.display = 'none';
+    btn.disabled = false;
+    document.getElementById('result-list').innerHTML = '<p style="color:#c62828;font-size:14px;">Une erreur est survenue. Réessaie.</p>';
+    document.getElementById('result-zone').style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>
